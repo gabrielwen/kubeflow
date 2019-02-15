@@ -50,14 +50,16 @@ directory is name is a path.`,
 		repo := initCfg.GetString(string(kftypes.REPO))
 		debug := initCfg.GetBool(string(kftypes.DEBUG))
 		project := initCfg.GetString(string(kftypes.PROJECT))
+		init_gcp := initCfg.GetBool(string(kftypes.SKIP_INIT_GCP_PROJECT))
 		options := map[string]interface{}{
-			string(kftypes.PLATFORM):  platform,
-			string(kftypes.NAMESPACE): namespace,
-			string(kftypes.VERSION):   version,
-			string(kftypes.APPNAME):   appName,
-			string(kftypes.REPO):      repo,
-			string(kftypes.DEBUG):     debug,
-			string(kftypes.PROJECT):   project,
+			string(kftypes.PLATFORM):              platform,
+			string(kftypes.NAMESPACE):             namespace,
+			string(kftypes.VERSION):               version,
+			string(kftypes.APPNAME):               appName,
+			string(kftypes.REPO):                  repo,
+			string(kftypes.DEBUG):                 debug,
+			string(kftypes.PROJECT):               project,
+			string(kftypes.SKIP_INIT_GCP_PROJECT): init_gcp,
 		}
 		kfApp, kfAppErr := newKfApp(options)
 		if kfAppErr != nil || kfApp == nil {
@@ -125,6 +127,16 @@ func init() {
 	bindErr = initCfg.BindPFlag(string(kftypes.VERBOSE), initCmd.Flags().Lookup(string(kftypes.VERBOSE)))
 	if bindErr != nil {
 		log.Errorf("couldn't set flag --%v: %v", string(kftypes.VERBOSE), bindErr)
+		return
+	}
+
+	// Skip initGcpProject.
+	initCmd.Flags().BoolP(string(kftypes.SKIP_INIT_GCP_PROJECT), "", false,
+		"Set if you want to skip project initialization. Only meaningful if --platform gcp. Default to false")
+	bindErr = initCfg.BindPFlag(string(kftypes.SKIP_INIT_GCP_PROJECT), initCmd.Flags().Lookup(
+		string(kftypes.SKIP_INIT_GCP_PROJECT)))
+	if bindErr != nil {
+		log.Errorf("couldn't set flag --%v: %v", string(kftypes.SKIP_INIT_GCP_PROJECT), bindErr)
 		return
 	}
 

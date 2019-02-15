@@ -128,6 +128,10 @@ func GetKfApp(options map[string]interface{}) kftypes.KfApp {
 		project := options[string(kftypes.PROJECT)].(string)
 		_gcp.GcpApp.Spec.Project = project
 	}
+	if options[string(kftypes.SKIP_INIT_GCP_PROJECT)] != nil {
+		skipInitProject := options[string(kftypes.SKIP_INIT_GCP_PROJECT)].(bool)
+		_gcp.GcpApp.Spec.SkipInitProject = skipInitProject
+	}
 	return _gcp
 }
 
@@ -622,11 +626,12 @@ func (gcp *Gcp) Init(options map[string]interface{}) error {
 	if createConfigErr != nil {
 		return fmt.Errorf("cannot create config file app.yaml in %v", gcp.GcpApp.Spec.AppDir)
 	}
-	/* Currently doesn't work
-	initProjectErr := gcp.gcpInitProject()
-	if initProjectErr != nil {
-		return fmt.Errorf("cannot init gcp project %v", initProjectErr)
+	if !gcp.GcpApp.Spec.SkipInitProject {
+		log.Infof("Not skipping GCP project init.")
+		initProjectErr := gcp.gcpInitProject()
+		if initProjectErr != nil {
+			return fmt.Errorf("cannot init gcp project %v", initProjectErr)
+		}
 	}
-	*/
 	return nil
 }
