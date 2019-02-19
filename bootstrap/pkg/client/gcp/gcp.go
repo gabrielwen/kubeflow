@@ -19,6 +19,7 @@ package gcp
 import (
 	"fmt"
 	"github.com/ghodss/yaml"
+	gogetter "github.com/hashicorp/go-getter"
 	kftypes "github.com/kubeflow/kubeflow/bootstrap/pkg/apis/apps"
 	gcptypes "github.com/kubeflow/kubeflow/bootstrap/pkg/apis/apps/gcp/v1alpha1"
 	kstypes "github.com/kubeflow/kubeflow/bootstrap/pkg/apis/apps/ksonnet/v1alpha1"
@@ -27,12 +28,15 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	gke "google.golang.org/api/container/v1"
 	"google.golang.org/api/deploymentmanager/v2"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/serviceusage/v1"
 	"io"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -491,6 +495,34 @@ func (gcp *Gcp) downloadK8sManifests() error {
 	if k8sSpecsDirErr != nil {
 		return fmt.Errorf("cannot create directory %v Error %v", k8sSpecsDir, k8sSpecsDirErr)
 	}
+	daemonsetPreloaded := filepath.Join(k8sSpecsDir, "daemonset-preloaded.yaml")
+	url := "https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/stable/nvidia-driver-installer/cos/daemonset-preloaded.yaml"
+	urlErr := gogetter.GetAny(daemonsetPreloaded, url)
+	if urlErr != nil {
+		return fmt.Errorf("couldn't download %v Error %v", url, urlErr)
+	}
+	rbacSetup := filepath.Join(k8sSpecsDir, "rbac-setup.yaml")
+	url = "https://storage.googleapis.com/stackdriver-kubernetes/stable/rbac-setup.yaml"
+	urlErr = gogetter.GetAny(rbacSetup, url)
+	if urlErr != nil {
+		return fmt.Errorf("couldn't download %v Error %v", url, urlErr)
+	}
+	agents := filepath.Join(k8sSpecsDir, "agents.yaml")
+	url = "https://storage.googleapis.com/stackdriver-kubernetes/stable/agents.yaml"
+	urlErr = gogetter.GetAny(agents, url)
+	if urlErr != nil {
+		return fmt.Errorf("couldn't download %v Error %v", url, urlErr)
+	}
+
+	/*TODO
+	  # Install the GPU driver. It has no effect on non-GPU nodes.
+	  kubectl apply -f ${KUBEFLOW_K8S_MANIFESTS_DIR}/daemonset-preloaded.yaml
+
+	  # Install Stackdriver Kubernetes agents.
+	  kubectl apply -f ${KUBEFLOW_K8S_MANIFESTS_DIR}/rbac-setup.yaml --as=admin --as-group=system:masters
+	  kubectl apply -f ${KUBEFLOW_K8S_MANIFESTS_DIR}/agents.yaml
+	*/
+
 	return nil
 }
 
@@ -523,6 +555,22 @@ func (gcp *Gcp) createGcpSecret(email string, secretName string) error {
 		data, err := resp.MarshalJSON()
 		if err != nil {
 			return err
+		}
+		_, secretMissingErr := cli.CoreV1().Secrets(gcp.GcpApp.Namespace).Get(secretName, metav1.GetOptions{})
+		if secretMissingErr != nil {
+			secretSpec := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: gcp.GcpApp.Namespace,
+				},
+				Data: map[string][]byte{
+					v1.ServiceAccountTokenKey: []byte(data),
+				},
+			}
+			_, nsErr := cli.CoreV1().Secrets(gcp.GcpApp.Namespace).Create(secretSpec)
+			if nsErr != nil {
+				return fmt.Errorf("couldn't create "+string(kftypes.NAMESPACE)+" %v Error: %v", namespace, nsErr)
+			}
 		}
 		log.Infof("data = %v", data)
 	} else {
@@ -594,18 +642,29 @@ func (gcp *Gcp) Generate(resources kftypes.ResourceEnum, options map[string]inte
 	return nil
 }
 
+func (gcp *Gcp) getServiceClient(ctx context.Context) (*http.Client, error) {
+
+	// See https://cloud.google.com/docs/authentication/.
+	// Use GOOGLE_APPLICATION_CREDENTIALS environment variable to specify
+	// a service account key file to authenticate to the API.
+
+	client, err := google.DefaultClient(ctx, gke.CloudPlatformScope)
+	if err != nil {
+		log.Fatalf("Could not get authenticated client: %v", err)
+		return nil, err
+	}
+	return client, nil
+}
+
 func (gcp *Gcp) gcpInitProject() error {
 	ctx := context.Background()
-	oauthClient, err := google.DefaultClient(ctx, serviceusage.CloudPlatformScope)
-	if err != nil {
-		return err
+	client, clientErr := gcp.getServiceClient(ctx)
+	if clientErr != nil {
+		return fmt.Errorf("could not create client %v", clientErr)
 	}
-	serviceusageService, err := serviceusage.New(oauthClient)
-	if err != nil {
-		return fmt.Errorf("Create serviceusage error: %v", err)
-	}
-	if err != nil {
-		return fmt.Errorf("Create ComputeService error: %v", err)
+	serviceusageService, serviceusageServiceErr := serviceusage.New(client)
+	if serviceusageServiceErr != nil {
+		return fmt.Errorf("could not create service usage service %v", serviceusageServiceErr)
 	}
 
 	enabledApis := []string{
@@ -646,6 +705,7 @@ func (gcp *Gcp) Init(options map[string]interface{}) error {
 	if createConfigErr != nil {
 		return fmt.Errorf("cannot create config file app.yaml in %v", gcp.GcpApp.Spec.AppDir)
 	}
+
 	if !gcp.GcpApp.Spec.SkipInitProject {
 		log.Infof("Not skipping GCP project init, running gcpInitProject.")
 		initProjectErr := gcp.gcpInitProject()
@@ -653,5 +713,6 @@ func (gcp *Gcp) Init(options map[string]interface{}) error {
 			return fmt.Errorf("cannot init gcp project %v", initProjectErr)
 		}
 	}
+
 	return nil
 }
