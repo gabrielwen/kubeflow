@@ -82,6 +82,7 @@ func GetKfApp(options map[string]interface{}) kftypes.KfApp {
 		},
 	}
 	_gcp.Children[kftypes.KSONNET] = _ksonnet
+	_gcp.GcpApp.Spec.UseBasicAuth = options[string(kftypes.USE_BASIC_AUTH)].(bool)
 	if options[string(kftypes.DATA)] != nil {
 		dat := options[string(kftypes.DATA)].([]byte)
 		specErr := yaml.Unmarshal(dat, _gcp.GcpApp)
