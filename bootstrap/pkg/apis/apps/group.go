@@ -40,6 +40,9 @@ const (
 	DefaultGitRepo  = "https://github.com/kubeflow/kubeflow/tarball"
 	KfConfigFile    = "app.yaml"
 	DefaultCacheDir = ".cache"
+	GcpConfigDir    = "bootstrap/config"
+	GcpIapConfig    = "kfctl_iap.yaml"
+	GcpBasicAuth    = "kfctl_basic_auth.yaml"
 )
 
 type ResourceEnum string

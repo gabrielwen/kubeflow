@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/ghodss/yaml"
 	gogetter "github.com/hashicorp/go-getter"
+	// configtypes "github.com/kubeflow/kubeflow/bootstrap/config"
 	kftypes "github.com/kubeflow/kubeflow/bootstrap/pkg/apis/apps"
 	gcptypes "github.com/kubeflow/kubeflow/bootstrap/pkg/apis/apps/gcp/v1alpha1"
 	kstypes "github.com/kubeflow/kubeflow/bootstrap/pkg/apis/apps/ksonnet/v1alpha1"
@@ -338,10 +339,14 @@ func (gcp *Gcp) copyFile(source string, dest string) error {
 
 func (gcp *Gcp) generateKsonnet(options map[string]interface{}) error {
 	email := gcp.GcpApp.Spec.Email
+	configPath := path.Join(gcp.GcpApp.Spec.AppDir,
+		kftypes.DefaultCacheDir,
+		gcp.GcpApp.Spec.Version,
+		kftypes.GcpConfigDir)
 	if gcp.GcpApp.Spec.UseBasicAuth {
-		log.Infof("GG TEST: Use basic auth.")
+		configPath = path.Join(configPath, kftypes.GcpBasicAuth)
 	} else {
-		log.Infof("GG TEST: Not use basic auth.")
+		configPath = path.Join(configPath, kftypes.GcpIapConfig)
 	}
 	if options[string(kftypes.EMAIL)] != nil {
 		email = options[string(kftypes.EMAIL)].(string)
