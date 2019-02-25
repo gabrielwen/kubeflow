@@ -37,7 +37,7 @@ const (
 	DefaultPlatform  = "ksonnet"
 	// TODO: find the latest tag dynamically
 	DefaultVersion  = "master"
-	DefaultGitRepo  = "https://github.com/kubeflow/kubeflow/tarball"
+	DefaultGitRepo  = "https://github.com/gabrielwen/kubeflow/tarball"
 	KfConfigFile    = "app.yaml"
 	DefaultCacheDir = ".cache"
 	GcpConfigDir    = "bootstrap/config"
