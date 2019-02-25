@@ -34,15 +34,16 @@ import (
 
 const (
 	DefaultNamespace = "kubeflow"
-	DefaultPlatform  = "none"
+	DefaultPlatform  = "ksonnet"
 	// TODO: find the latest tag dynamically
-	DefaultVersion  = "v0.4.1"
-	DefaultGitRepo  = "https://github.com/gabrielwen/kubeflow/tarball"
+	DefaultVersion  = "master"
+	DefaultGitRepo  = "https://github.com/kubeflow/kubeflow/tarball"
 	KfConfigFile    = "app.yaml"
 	DefaultCacheDir = ".cache"
 	GcpConfigDir    = "bootstrap/config"
 	GcpIapConfig    = "kfctl_iap.yaml"
 	GcpBasicAuth    = "kfctl_basic_auth.yaml"
+	DefaultZone     = "us-east1-d"
 )
 
 type ResourceEnum string
