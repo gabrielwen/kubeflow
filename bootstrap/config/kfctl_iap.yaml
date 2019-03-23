@@ -74,7 +74,7 @@ componentParams:
       value: <deployName>-storage-artifact-store
   spartakus:
     - name: usageId
-      value: <randomly-generated-id>
+      value: "123456"
       initRequired: true
     - name: reportUsage
       value: "true"
